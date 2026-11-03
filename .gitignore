@@ -9,7 +9,12 @@ yarn-error.log*
 .pnp.js
 
 .vscode/*
+# Slice 1 lokale omgeving en output
+.venv/
+slice1_output/
+*.parquet
+__pycache__/
 
-/backend/model/vacancies_2026.parquet
-/backend/model/vacancies_extracted.csv
-/backend/model/jobs.csv
+
+
+/backend/model/data/*
