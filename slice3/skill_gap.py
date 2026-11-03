@@ -46,6 +46,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import subprocess
 import sys
 from collections import Counter, defaultdict
@@ -61,6 +62,7 @@ from aggregate_skills import load_skills  # noqa: E402  (hergebruik Slice 2)
 from extract_vacancies import write_csv  # noqa: E402  (hergebruik Slice 2)
 
 DEFAULT_SPINE = REPO / "slice1_output" / "spine_raw_jobs.parquet"
+OUTPUT_DIR = REPO / "backend" / "output"
 DEFAULT_CACHE = MODEL_DIR / "match_cache" / "skills.jsonl"
 
 # Kolomnamen Slice 1 (Contract 1) en ruwe vacatures (Slice 2)
@@ -280,18 +282,31 @@ def main() -> None:
     ap.add_argument("--top-matches", type=int, default=None, help="alleen de N meest gelijkaardige (rank)")
     ap.add_argument("--top-skills", type=int, default=20, help="aantal meest voorkomende skills")
     ap.add_argument("--concurrency", type=int, default=8, help="parallelle LLM-verzoeken (model.py)")
-    ap.add_argument("--out", type=Path, default=Path("skill_tijdlijn.json"))
+    ap.add_argument("--target", default=None,
+                    help="naam van het doelbedrijf (Slice 2-doel). Zet die in meta en schrijft naar "
+                         "backend/output/skill_tijdlijn_<doelbedrijf>.json, waar de UI hem leest")
+    ap.add_argument("--out", type=Path, default=None, help="uitvoerbestand (overschrijft de standaard)")
     args = ap.parse_args()
 
     if not args.matches.is_file():
         sys.exit(f"Slice 2-bestand bestaat niet: {args.matches}")
 
+    out = args.out
+    if out is None:
+        if args.target:
+            slug = re.sub(r"[^a-z0-9]+", "_", args.target.lower()).strip("_")
+            out = OUTPUT_DIR / f"skill_tijdlijn_{slug}.json"
+        else:
+            out = Path("skill_tijdlijn.json")
+    out.parent.mkdir(parents=True, exist_ok=True)
+
     result, meta = build(args.matches, args.raw_dir, args.spine, args.cache,
                          args.top_matches, args.top_skills, args.concurrency)
     meta["matches_file"] = args.matches.name
+    meta["target_company"] = args.target
     payload = {**result, "meta": meta}
-    args.out.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
-    print(f"Geschreven naar {args.out}")
+    out.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    print(f"Geschreven naar {out}")
 
 
 if __name__ == "__main__":

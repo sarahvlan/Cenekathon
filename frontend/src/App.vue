@@ -1,26 +1,64 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
-import { sampleSkillGap } from '@/data/sampleSkillGap'
+import { computed, onMounted, ref, watch } from 'vue'
+import type { SkillGapData, SkillGapResponse } from '@/types'
 import { allSkills, buildAdvice, sortedTimelines, timelineLabel } from '@/lib/analysis'
 import CompanyPicker from '@/components/CompanyPicker.vue'
 import AdviceCard from '@/components/AdviceCard.vue'
 import MarketTable from '@/components/MarketTable.vue'
 import CompanyCard from '@/components/CompanyCard.vue'
 
-// Vervang door een fetch naar de Slice 3-output zodra die beschikbaar is.
-const data = sampleSkillGap
-const companies = Object.keys(data)
-
+// Doelbedrijven met een Slice 3-output (backend/output), en het gekozen doelbedrijf.
+const targets = ref<string[]>([])
 const target = ref<string | null>(null)
+const data = ref<SkillGapData>({})
+const loading = ref(false)
+const error = ref<string | null>(null)
 
-const timelines = computed(() => sortedTimelines(data))
-const skills = computed(() => allSkills(data))
-const advice = computed(() => (target.value ? buildAdvice(data, target.value) : []))
-const peerNames = computed(() => companies.filter((c) => c !== target.value))
+async function getJson<T>(url: string): Promise<T> {
+  const res = await fetch(url)
+  const body = await res.json()
+  if (!res.ok) throw new Error(body.error ?? res.statusText)
+  return body as T
+}
+
+onMounted(async () => {
+  try {
+    targets.value = await getJson<string[]>('/api/targets')
+  } catch (e) {
+    error.value = String(e)
+  }
+})
+
+// Elke keuze van een doelbedrijf haalt de bijbehorende Slice 3-data op.
+watch(target, async (name) => {
+  if (!name) return
+  loading.value = true
+  error.value = null
+  try {
+    const res = await getJson<SkillGapResponse>(`/api/skill-gap?target=${encodeURIComponent(name)}`)
+    data.value = res.data
+  } catch (e) {
+    data.value = {}
+    error.value = String(e)
+  } finally {
+    loading.value = false
+  }
+})
+
+const timelines = computed(() => sortedTimelines(data.value))
+const skills = computed(() => allSkills(data.value))
+// Het doelbedrijf heeft eigen tijdlijnen nodig om te kunnen vergelijken.
+const hasTargetData = computed(
+  () => !!target.value && Object.keys(data.value[target.value] ?? {}).length > 0,
+)
+const advice = computed(() =>
+  target.value && hasTargetData.value ? buildAdvice(data.value, target.value) : [],
+)
+const peerNames = computed(() => Object.keys(data.value).filter((c) => c !== target.value))
 </script>
 
 <template>
-  <CompanyPicker v-if="!target" v-model="target" :companies="companies" />
+  <CompanyPicker v-if="!target" v-model="target" :companies="targets" />
 
   <div v-else class="min-h-screen">
     <header class="bg-navy-900 text-white">
@@ -42,7 +80,11 @@ const peerNames = computed(() => companies.filter((c) => c !== target.value))
     </header>
 
     <main class="mx-auto max-w-7xl space-y-10 px-6 py-8">
-      <p class="text-sm text-slate-600">
+      <p v-if="error" class="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
+        {{ error }}
+      </p>
+      <p v-else-if="loading" class="text-sm text-slate-600">Data laden…</p>
+      <p v-else class="text-sm text-slate-600">
         Vergeleken met {{ peerNames.length }} peer-bedrijven over
         {{ timelines.map(timelineLabel).join(' en ') }}.
       </p>
@@ -53,6 +95,13 @@ const peerNames = computed(() => companies.filter((c) => c !== target.value))
           <AdviceCard v-for="item in advice" :key="item.skill" :item="item" />
         </div>
         <p
+          v-else-if="!hasTargetData"
+          class="mt-4 rounded-xl border border-slate-200 bg-white p-6 text-sm text-slate-600"
+        >
+          Er is nog geen vacaturedata van jouw bedrijf in de Slice 3-output, dus er kan geen
+          vergelijking worden gemaakt. De peer-tijdlijnen staan hieronder.
+        </p>
+        <p
           v-else
           class="mt-4 rounded-xl border border-slate-200 bg-white p-6 text-sm text-slate-600"
         >
@@ -60,7 +109,7 @@ const peerNames = computed(() => companies.filter((c) => c !== target.value))
         </p>
       </section>
 
-      <section aria-labelledby="market-heading">
+      <section v-if="hasTargetData" aria-labelledby="market-heading">
         <h2 id="market-heading" class="text-lg font-semibold text-navy-900">
           Marktgemiddelde per skill
         </h2>
