@@ -11,12 +11,7 @@ REGION_SCOPES = ("country", "europe", "any")
 # Landnamen zoals Yahoo Finance ze teruggeeft (veld `country`).
 EUROPEAN_COUNTRIES = frozenset(
     {
-        "Austria", "Belgium", "Bulgaria", "Croatia", "Cyprus", "Czech Republic",
-        "Czechia", "Denmark", "Estonia", "Finland", "France", "Germany", "Greece",
-        "Hungary", "Iceland", "Ireland", "Italy", "Latvia", "Liechtenstein",
-        "Lithuania", "Luxembourg", "Malta", "Netherlands", "Norway", "Poland",
-        "Portugal", "Romania", "Slovakia", "Slovenia", "Spain", "Sweden",
-        "Switzerland", "United Kingdom",
+        "Belgium", "Luxembourg", "Netherlands", "United Kingdom",
     }
 )
 
