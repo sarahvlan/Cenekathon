@@ -18,3 +18,4 @@ __pycache__/
 
 
 /backend/model/data/*
+backend/model/output/*

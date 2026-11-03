@@ -17,7 +17,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from slice1.company_resolver import CompanyResolver  # noqa: E402
 from slice1.contract import CONTRACT_COLUMNS, size_tier, validate_contract_schema  # noqa: E402
 from slice1.models import CompanyProfile  # noqa: E402
-from slice1.names import name_similarity, normalize_name  # noqa: E402
+from slice1.names import name_lookup_score, name_similarity, normalize_name  # noqa: E402
 from slice1.peers import candidate_peers, has_positive_growth  # noqa: E402
 from slice1.vacancy_export import export_contract  # noqa: E402
 
@@ -41,6 +41,21 @@ class NormalizeNameTests(unittest.TestCase):
     def test_similarity(self):
         self.assertGreaterEqual(name_similarity("Barclays", "Barclays PLC"), 0.85)
         self.assertLess(name_similarity("Barclays", "Lloyds Banking Group"), 0.85)
+
+    def test_lookup_accepts_leading_name_match(self):
+        # Getypte naam "KBC" moet "KBC Groep NV" (Yahoo) herkennen zonder alias.
+        self.assertGreaterEqual(name_lookup_score("KBC", "KBC Groep NV"), 0.85)
+        self.assertGreaterEqual(name_lookup_score("KBC", "KBC Group NV"), 0.85)
+        self.assertGreaterEqual(name_lookup_score("ING", "ING Groep NV"), 0.85)
+
+    def test_lookup_rejects_unrelated_and_too_long(self):
+        self.assertLess(name_lookup_score("KBC", "Kbc Lighting Manufacturing Solutions Ltd"), 0.85)
+        self.assertLess(name_lookup_score("Barclays", "Lloyds Banking Group"), 0.85)
+        self.assertLess(name_lookup_score("KBC", "Akbc Capital"), 0.85)
+
+    def test_exact_match_beats_prefix(self):
+        self.assertEqual(name_lookup_score("Shell", "Shell plc"), 1.0)
+        self.assertLess(name_lookup_score("Shell", "Shell Midstream Partners LP Units"), 0.85)
 
 
 class PeerSelectionTests(unittest.TestCase):

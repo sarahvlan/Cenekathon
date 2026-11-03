@@ -15,7 +15,7 @@ import yfinance as yf
 
 from .cache import JsonCache
 from .models import CompanyProfile
-from .names import name_similarity, normalize_name
+from .names import name_lookup_score, normalize_name
 
 log = logging.getLogger(__name__)
 
@@ -55,7 +55,7 @@ class MarketDataClient:
                 candidate = quote.get(field)
                 if not candidate:
                     continue
-                score = name_similarity(name, candidate)
+                score = name_lookup_score(name, candidate)
                 if score > best_score:
                     best_symbol, best_score = quote.get("symbol"), score
 

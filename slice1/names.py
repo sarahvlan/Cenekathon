@@ -37,3 +37,27 @@ def name_similarity(a: str | None, b: str | None) -> float:
     if not na or not nb:
         return 0.0
     return SequenceMatcher(None, na, nb).ratio()
+
+
+# Een listing-naam mag maximaal zoveel extra woorden hebben t.o.v. de getypte naam
+# om nog als prefix-match te tellen (bv. "KBC" -> "KBC Groep").
+PREFIX_MAX_EXTRA_TOKENS = 2
+PREFIX_MATCH_SCORE = 0.9
+
+
+def name_lookup_score(query: str | None, listing: str | None) -> float:
+    """Score voor het koppelen van een getypte naam aan een Yahoo-listingnaam.
+
+    Gebruikt naamgelijkenis, maar ook een prefix-match: staat de getypte naam
+    vooraan de listingnaam (bv. "KBC" en "KBC Groep NV"), dan telt dat als match.
+    Een exacte of sterkere match wint altijd van een prefix-match.
+    """
+    q_tokens = normalize_name(query).split()
+    l_tokens = normalize_name(listing).split()
+    if not q_tokens or not l_tokens:
+        return 0.0
+    score = name_similarity(query, listing)
+    extra = len(l_tokens) - len(q_tokens)
+    if 0 <= extra <= PREFIX_MAX_EXTRA_TOKENS and l_tokens[: len(q_tokens)] == q_tokens:
+        score = max(score, PREFIX_MATCH_SCORE)
+    return score
