@@ -16,14 +16,17 @@ Installatie:
     pip install duckdb
 
 Gebruik:
-    python skill_gap.py --similar slice2_similar.parquet --vacancies slice1_spine/ --out skill_tijdlijn.json
+    python slice3/skill_gap.py --similar slice2_output.parquet --out skill_tijdlijn.json
 
 Invoer:
-  --similar    Slice 2-output: parquet/csv/json met de kolommen
-               company_clean, is_target_company, publication_date
-  --vacancies  Slice 1-output: een parquet-bestand, of een map met parquet-bestanden
-               (kolommen volgens Contract 1: job_id, company_name, publication_date,
-               job_title, description_text, optioneel is_successful_growth_peer)
+  --similar    Slice 2-output (Contract 2): parquet/csv/json met de kolommen
+               company_clean  (zelfde naam als company_name in Slice 1; hoofdletters maken niet uit)
+               is_target_company (bool)
+               publication_date (datum van de oude vacature) OF match_jaar (jaartal)
+               optioneel: followed_same_path (bool), job_id, job_title, description_text
+  --vacancies  Slice 1-output (Contract 1): standaard slice1_output/spine_raw_jobs.parquet.
+               Bevat het doelbedrijf en de succesvolle peers; de kolom
+               is_successful_growth_peer wordt gebruikt als die aanwezig is.
 
 Uitvoer (JSON):
   {
@@ -50,6 +53,11 @@ import duckdb
 SIMILAR_COMPANY_COL = "company_clean"
 SIMILAR_TARGET_COL = "is_target_company"
 SIMILAR_DATE_COL = "publication_date"
+SIMILAR_MATCH_YEAR_COL = "match_jaar"          # optioneel: alternatief voor publication_date
+SIMILAR_FOLLOWED_COL = "followed_same_path"    # optioneel: enkel rijen met true gebruiken
+
+# Standaardlocatie van de Slice 1-output (slice1_pipeline.py schrijft hier naartoe)
+DEFAULT_VACANCIES = Path(__file__).resolve().parent.parent / "slice1_output" / "spine_raw_jobs.parquet"
 
 JOB_ID_COL = "job_id"
 COMPANY_COL = "company_name"
@@ -112,16 +120,32 @@ def rows(con: duckdb.DuckDBPyConnection, sql: str) -> list[dict]:
 def build(similar_path: Path, vacancies_path: Path) -> tuple[dict, dict]:
     con = duckdb.connect()
 
-    # 1. Match-punten: elk (bedrijf, match-jaar) uit Slice 2, doelbedrijf uitgesloten
+    # 1. Match-punten: elk (bedrijf, match-jaar) uit Slice 2, doelbedrijf uitgesloten.
+    #    Het match-jaar komt uit publication_date van de oude vacature, of uit een
+    #    kant-en-klare kolom match_jaar als Slice 2 die meelevert.
+    sim_cols = [d[0] for d in con.execute(f"SELECT * FROM {scan_expr(similar_path)} LIMIT 0").description]
+    if SIMILAR_MATCH_YEAR_COL in sim_cols:
+        year_expr = f"CAST({SIMILAR_MATCH_YEAR_COL} AS INTEGER)"
+    elif SIMILAR_DATE_COL in sim_cols:
+        year_expr = f"year(TRY_CAST({SIMILAR_DATE_COL} AS DATE))"
+    else:
+        sys.exit(f"Slice 2-bestand mist {SIMILAR_DATE_COL!r} of {SIMILAR_MATCH_YEAR_COL!r}.")
+    follow_filter = ""
+    if SIMILAR_FOLLOWED_COL in sim_cols:
+        follow_filter = f"AND coalesce(CAST({SIMILAR_FOLLOWED_COL} AS BOOLEAN), false)"
+    else:
+        print(f"WAARSCHUWING: kolom '{SIMILAR_FOLLOWED_COL}' ontbreekt; alle rijen uit Slice 2 worden gebruikt",
+              file=sys.stderr)
     con.execute(f"""
         CREATE TABLE match_points AS
         SELECT DISTINCT lower(trim(CAST({SIMILAR_COMPANY_COL} AS VARCHAR))) AS company,
                trim(CAST({SIMILAR_COMPANY_COL} AS VARCHAR)) AS company_display,
-               year(TRY_CAST({SIMILAR_DATE_COL} AS DATE)) AS match_jaar
+               {year_expr} AS match_jaar
         FROM {scan_expr(similar_path)}
         WHERE NOT coalesce(CAST({SIMILAR_TARGET_COL} AS BOOLEAN), false)
-          AND year(TRY_CAST({SIMILAR_DATE_COL} AS DATE)) IS NOT NULL
+          AND {year_expr} IS NOT NULL
           AND trim(CAST({SIMILAR_COMPANY_COL} AS VARCHAR)) <> ''
+          {follow_filter}
     """)
     if not rows(con, "SELECT 1 FROM match_points LIMIT 1"):
         sys.exit("Geen bruikbare match-punten in het Slice 2-bestand (company_clean en publication_date nodig).")
@@ -220,8 +244,8 @@ def main() -> None:
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--similar", type=Path, required=True,
                     help="Slice 2-output: gelijkaardige oude vacatures (parquet/csv/json)")
-    ap.add_argument("--vacancies", type=Path, required=True,
-                    help="Slice 1-output: parquet-bestand of map met parquet-bestanden")
+    ap.add_argument("--vacancies", type=Path, default=DEFAULT_VACANCIES,
+                    help="Slice 1-output (Contract 1), standaard slice1_output/spine_raw_jobs.parquet")
     ap.add_argument("--out", type=Path, default=Path("skill_tijdlijn.json"))
     args = ap.parse_args()
 
