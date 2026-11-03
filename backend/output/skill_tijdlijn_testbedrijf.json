@@ -1,0 +1,10 @@
+{
+  "Peer A": {
+    "1_jaar_na_match": {"AI Governance": 0.25, "Python": 0.15, "GDPR": 0.25},
+    "2_jaar_na_match": {"AI Governance": 0.35, "Python": 0.15, "GDPR": 0.15}
+  },
+  "Peer B": {
+    "1_jaar_na_match": {"AI Governance": 1.0}
+  },
+  "meta": {"target_company": "Testbedrijf", "matches_file": "matches_test.csv"}
+}

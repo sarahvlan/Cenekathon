@@ -5,6 +5,13 @@ export type SkillRates = Record<string, number>
 export type TimelineRates = Record<string, SkillRates>
 export type SkillGapData = Record<string, TimelineRates>
 
+// Antwoord van GET /api/skill-gap?target=... (zie frontend/vite.config.ts).
+export interface SkillGapResponse {
+  target: string
+  data: SkillGapData
+  matchesFile: string | null
+}
+
 // Computed advice item for one skill the target company is missing.
 export interface AdviceItem {
   skill: string
