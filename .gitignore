@@ -9,3 +9,7 @@ yarn-error.log*
 .pnp.js
 
 .vscode/*
+
+/backend/model/vacancies_2026.parquet
+/backend/model/vacancies_extracted.csv
+/backend/model/jobs.csv
