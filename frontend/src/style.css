@@ -1,0 +1,14 @@
+@import 'tailwindcss';
+
+@theme {
+  --color-navy-950: #0a1530;
+  --color-navy-900: #0f1e3d;
+  --color-navy-700: #1d3560;
+  --color-navy-500: #3a5a8c;
+  --color-navy-100: #dfe6f1;
+  --font-sans: system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+
+body {
+  @apply bg-slate-50 text-slate-900 antialiased;
+}

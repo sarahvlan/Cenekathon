@@ -80,7 +80,6 @@ Het doel van deze tool is om de eigen historische vacatures van een financiële 
 {
   "slice": "competitive_path_skill_gap",
   "target_company": "Jouw Bank",
-  "role": "Compliance Officer",
   "headline": "Voeg 'AI Governance' toe aan je vacatures om het pad van succesvolle groeiers te volgen",
   "skills_to_add": [
     {
