@@ -14,3 +14,7 @@ yarn-error.log*
 slice1_output/
 *.parquet
 __pycache__/
+
+
+
+/backend/model/data/*
