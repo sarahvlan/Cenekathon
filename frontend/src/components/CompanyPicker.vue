@@ -1,17 +1,22 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 
-const props = defineProps<{ companies: string[] }>()
+const props = defineProps<{ companies: string[]; loadError?: string | null }>()
 const model = defineModel<string | null>({ required: true })
 
 const query = ref('')
 const error = ref('')
 
-// Suggesties voor het zoekveld: bedrijven die de zoekterm bevatten.
+// Suggesties: eerst de bedrijven die beginnen met de getypte tekst, daarna de overige
+// die de tekst ergens bevatten. Maximaal 50 tegelijk.
 const suggestions = computed(() => {
   const q = query.value.trim().toLowerCase()
   if (!q) return props.companies.slice(0, 50)
-  return props.companies.filter((c) => c.toLowerCase().includes(q)).slice(0, 50)
+  const prefix = props.companies.filter((c) => c.toLowerCase().startsWith(q))
+  const contains = props.companies.filter(
+    (c) => !c.toLowerCase().startsWith(q) && c.toLowerCase().includes(q),
+  )
+  return [...prefix, ...contains].slice(0, 50)
 })
 
 // Alleen een bedrijf uit de databank is geldig, zodat Slice 1 een herkenbare naam krijgt.
@@ -54,6 +59,9 @@ function choose(): void {
         <datalist id="company-options">
           <option v-for="company in suggestions" :key="company" :value="company" />
         </datalist>
+        <p v-if="loadError" class="text-sm text-red-200">
+          Bedrijvenlijst niet geladen: {{ loadError }}
+        </p>
         <p id="company-error" class="min-h-5 text-sm text-amber-200">{{ error }}</p>
         <button
           type="submit"

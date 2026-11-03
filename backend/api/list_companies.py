@@ -32,12 +32,20 @@ def raw_company_counts(files: list[Path]) -> list[tuple[str, int]]:
 
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--input-dir", type=Path, default=REPO, help="map met vacancies_*.parquet")
+    ap.add_argument("--input-dir", type=Path, action="append", default=None,
+                    help="map met vacancies_*.parquet (meerdere keren op te geven)")
     args = ap.parse_args()
 
-    files = sorted(args.input_dir.glob("vacancies_*.parquet"))
+    # Slice 1 leest de repo-root, Slice 2 backend/model. Zoek in beide; bij dezelfde bestandsnaam
+    # wint de eerste map, zodat een kopie niet dubbel geteld wordt.
+    dirs = args.input_dir or [REPO, REPO / "backend" / "model"]
+    by_name: dict[str, Path] = {}
+    for d in dirs:
+        for f in sorted(d.glob("vacancies_*.parquet")):
+            by_name.setdefault(f.name, f)
+    files = [by_name[n] for n in sorted(by_name)]
     if not files:
-        print(f"Geen vacancies_*.parquet in {args.input_dir}", file=sys.stderr)
+        print(f"Geen vacancies_*.parquet gevonden in {', '.join(str(d) for d in dirs)}", file=sys.stderr)
         return 1
 
     # Dezelfde naam met andere spaties of hoofdletters telt als één bedrijf.

@@ -16,6 +16,7 @@ interface Slice1Status {
 
 // Alle bedrijven uit de databank (suggestielijst) en het gekozen doelbedrijf.
 const companies = ref<string[]>([])
+const companiesError = ref<string | null>(null)
 const target = ref<string | null>(null)
 const data = ref<SkillGapData>({})
 const slice1 = ref<Slice1Status>({ status: 'idle' })
@@ -35,7 +36,7 @@ onMounted(async () => {
     const list = await getJson<{ name: string }[]>('/api/companies')
     companies.value = list.map((c) => c.name)
   } catch (e) {
-    error.value = `Bedrijvenlijst niet geladen: ${String(e)}`
+    companiesError.value = String(e)
   }
 })
 
@@ -117,7 +118,12 @@ const peerNames = computed(() => Object.keys(data.value).filter((c) => c !== tar
 </script>
 
 <template>
-  <CompanyPicker v-if="!target" v-model="target" :companies="companies" />
+  <CompanyPicker
+    v-if="!target"
+    v-model="target"
+    :companies="companies"
+    :load-error="companiesError"
+  />
 
   <div v-else class="min-h-screen">
     <header class="bg-navy-900 text-white">
