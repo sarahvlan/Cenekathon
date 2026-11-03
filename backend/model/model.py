@@ -6,16 +6,15 @@ Setup (Ollama):
     ollama pull qwen2.5:7b-instruct
     OLLAMA_NUM_PARALLEL=8 ollama serve
 
-Setup (vLLM, faster):
-    pip install vllm openai
-    vllm serve Qwen/Qwen2.5-7B-Instruct --max-model-len 8192
-    # then use --base-url http://localhost:8000/v1 --model Qwen/Qwen2.5-7B-Instruct
+Setup (vLLM, used now):
+    .venv/bin/vllm serve Qwen/Qwen2.5-14B-Instruct --max-model-len 8192 --port 8000
+    # defaults already point at http://localhost:8000/v1 and this model
 
 Usage:
     # test on 200 postings first
-    python extract_skills.py jobs.csv out.jsonl --text-col description --sample 200
+    python model.py jobs.csv out.jsonl --text-col description --sample 200
     # full run (safe to re-run: already processed ids are skipped)
-    python extract_skills.py jobs.csv out.jsonl --text-col description
+    python model.py jobs.csv out.jsonl --text-col description
 
 Input can be .csv or .jsonl. Without an id column, the row number (0-based) is the id.
 Output is JSONL: {"id": ..., "skills": {...}}
@@ -121,8 +120,8 @@ async def main():
     ap.add_argument("output")
     ap.add_argument("--id-col", default=None, help="optional; row number is used if omitted")
     ap.add_argument("--text-col", default=None, help="column with the job description (optional if the file has one column)")
-    ap.add_argument("--model", default="qwen2.5:7b-instruct")
-    ap.add_argument("--base-url", default="http://localhost:11434/v1")
+    ap.add_argument("--model", default="Qwen/Qwen2.5-14B-Instruct")
+    ap.add_argument("--base-url", default="http://localhost:8000/v1", help="vLLM (or Ollama: http://localhost:11434/v1)")
     ap.add_argument("--concurrency", type=int, default=8)
     ap.add_argument("--max-chars", type=int, default=6000)
     ap.add_argument("--sample", type=int, default=0, help="random sample size for a test run")
